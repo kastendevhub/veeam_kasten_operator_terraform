@@ -33,12 +33,14 @@ Before using this Terraform code, ensure you have the following:
 
 1. **Configure OpenShift CLI**:
    Ensure your OpenShift CLI is logged in to your cluster:
+
    ```bash
    oc login --token=<token> --server=<cluster-api-url>
    ```
 
 2. **Configure AWS CLI**:
    Make sure your AWS CLI is configured with the appropriate credentials:
+
    ```bash
    aws configure
    ```
@@ -49,24 +51,28 @@ Before using this Terraform code, ensure you have the following:
    - `startingCSV`: The version of Kasten K10 you want to deploy (default is v7.5.7)
 
 4. **Initialize Terraform**:
+
    ```bash
    cd installer_tf
    terraform init
    ```
 
 5. **Plan the Deployment**:
+
    ```bash
    terraform plan -var-file="../tfvars/values.tfvars"
    ```
 
 6. **Deploy Kasten K10**:
+
    ```bash
    terraform apply -var-file="../tfvars/values.tfvars"
    ```
 
 7. **Access the Kasten K10 Dashboard**:
    After the deployment completes, the Kasten K10 dashboard URL will be displayed in the Terraform output:
-   ```
+
+   ```hcl
    k10_dashboard_url = "https://k10-route-kasten-io.apps.<your-cluster-domain>/k10/"
    ```
 
@@ -75,13 +81,16 @@ Before using this Terraform code, ensure you have the following:
 To remove the Kasten K10 installation:
 
 1. **Terraform Destroy**:
+
    ```bash
    cd installer_tf
    terraform destroy -var-file="../tfvars/values.tfvars"
    ```
 
 2. **If Namespace is Stuck in Terminating Status**:
+   
    Use the cleanup script:
+
    ```bash
    cd ../cleanup_script
    chmod +x kasten_ns_cleanup.sh
@@ -112,16 +121,19 @@ This Terraform automation:
 If you encounter issues:
 
 1. Check the operator installation status:
+
    ```bash
    oc get csv -n kasten-io
    ```
 
 2. Check the K10 platform status:
+
    ```bash
    oc get k10 -n kasten-io
    ```
 
 3. View logs:
+
    ```bash
    oc logs -n kasten-io -l app=k10,component=jobs --tail=100
    ```
