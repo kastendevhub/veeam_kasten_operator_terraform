@@ -1,143 +1,323 @@
-# Veeam Kasten K10 Terraform Automation for Red Hat OpenShift on AWS
+# Terraform Deployment for ROSA and Veeam Kasten Operator
 
-This repository contains Terraform code to automate the installation of the Veeam Kasten K10 Operator on Red Hat OpenShift clusters running on AWS.
+This repository contains Terraform code to deploy a Red Hat OpenShift Service on AWS (ROSA) cluster and the Veeam Kasten K10 operator for data protection and management.
 
 ## Prerequisites
 
-Before using this Terraform code, ensure you have the following:
+- AWS CLI installed and configured with appropriate credentials
+- Terraform (version 1.0.0 or higher)
+- OpenShift CLI (`oc`) installed
+- Red Hat OpenShift Cluster Manager token
+- Optional: Azure CLI (if using Azure for the backend state)
 
-- [Terraform](https://www.terraform.io/downloads.html) v1.0.0 or higher
-- [AWS CLI](https://aws.amazon.com/cli/) installed and configured
-- [OpenShift CLI (oc)](https://docs.openshift.com/container-platform/4.13/cli_reference/openshift_cli/getting-started-cli.html) installed
-- [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) installed
-- Access to a Red Hat OpenShift cluster running on AWS with admin privileges
-- OpenShift Cluster Manager API token
+## Deployment Process
 
-## Repository Structure
+The deployment is divided into two stages:
+1. Stage 1: Deploy the ROSA cluster
+2. Stage 2: Deploy the Veeam Kasten K10 Operator and optional components
 
-```
-├── cleanup_script/             # Scripts for cleaning up Kasten resources
-│   └── kasten_ns_cleanup.sh    # Script to clean up a stuck Kasten namespace
-├── installer_tf/               # Main Terraform configuration
-│   ├── main.tf                 # Core Terraform configuration for K10 installation
-│   ├── output.tf               # Terraform outputs
-│   ├── provider.tf             # Provider configuration
-│   └── variables.tf            # Input variables
-├── tfvars/                     # Variable definitions
-│   └── values.tfvars           # Example variable values
-├── LICENSE                     # MIT License
-└── README.md                   # This file
-```
+## Stage 1: Deploy ROSA Cluster
 
-## Setup Instructions
+### Step 1: Configure Backend State (Optional)
 
-1. **Configure OpenShift CLI**:
-   Ensure your OpenShift CLI is logged in to your cluster:
+If you're using Azure for backend state storage:
 
-   ```bash
-   oc login --token=<token> --server=<cluster-api-url>
+1. Edit the backend configuration in `stage_1_rosa/backend.tf`:
+
+   ```hcl
+   terraform {
+     backend "azurerm" {
+       storage_account_name = "your-storage-account-name"
+       container_name       = "your-container-name"
+       key                  = "stage-1-rosa.tfstate"
+     }
+   }
    ```
 
-2. **Configure AWS CLI**:
-   Make sure your AWS CLI is configured with the appropriate credentials:
+2. Log in to Azure:
 
    ```bash
-   aws configure
+   az login
    ```
 
-3. **Update the Variables File**:
-   Update the values in `tfvars/values.tfvars` with your specific configuration:
-   - `token`: Your OpenShift Cluster Manager API token
-   - `startingCSV`: The version of Kasten K10 you want to deploy (default is v7.5.7)
+### Step 2: Configure Variables
 
-4. **Initialize Terraform**:
+1. Navigate to the stage_1_rosa directory:
 
    ```bash
-   cd installer_tf
+   cd stage_1_rosa
+   ```
+
+2. Create or edit a `.tfvars` file in the `tfvars` directory. You can use the provided example as a template:
+
+   ```bash
+   cp tfvars/stage_1_rosa.tfvars tfvars/your-name.tfvars
+   ```
+
+3. Edit your `.tfvars` file with appropriate values:
+
+   ```hcl
+   aws_region      = "us-east-1"                 # Your AWS region
+   tag_expire_by   = "2024-12-31"                # Expiration date for resources
+   tag_environment = "my-rosa-env-tf"            # Environment name (must end with -tf)
+   
+   new_vpc_name    = "rosa-vpc-tf"               # Name for the new VPC (must end with -tf)
+   
+   cluster_name            = "my-rosa-cluster-tf" # ROSA cluster name (must end with -tf)
+   openshift_version       = "4.17.19"            # OpenShift version
+   compute_machine_type    = "m5.xlarge"          # AWS instance type
+   token                   = "your-token"         # RHCS token
+   htpasswd_idp_user       = "openshift-admin"    # Admin username
+   htpasswd                = "secure-password"    # Admin password
+   
+   bucket_name = "my-rosa-bucket-tf"              # S3 bucket name (must end with -tf)
+   ```
+
+### Step 3: Initialize and Apply Terraform
+
+1. Initialize Terraform:
+
+   ```bash
    terraform init
    ```
 
-5. **Plan the Deployment**:
+2. Validate your configuration:
 
    ```bash
-   terraform plan -var-file="../tfvars/values.tfvars"
+   terraform validate
    ```
 
-6. **Deploy Kasten K10**:
+3. Plan the deployment:
 
    ```bash
-   terraform apply -var-file="../tfvars/values.tfvars"
+   terraform plan -var-file=tfvars/your-name.tfvars
    ```
 
-7. **Access the Kasten K10 Dashboard**:
-   After the deployment completes, the Kasten K10 dashboard URL will be displayed in the Terraform output:
+4. Apply the configuration:
+
+   ```bash
+   terraform apply -var-file=tfvars/your-name.tfvars
+   ```
+
+5. Wait for the ROSA cluster to be deployed (this may take 30-40 minutes).
+
+### Step 4: Verify the ROSA Cluster Deployment
+
+1. Check the status of your ROSA cluster:
+
+   ```bash
+   rosa describe cluster -c your-cluster-name-tf
+   ```
+
+2. Configure the OpenShift CLI to connect to your cluster:
+
+   ```bash
+   rosa create admin --cluster=your-cluster-name-tf
+   # Follow the instructions to log in
+   ```
+
+3. Verify the connection:
+
+   ```bash
+   oc get nodes
+   ```
+
+## Stage 2: Deploy Veeam Kasten K10 and Optional Components
+
+### Step 1: Configure Backend State (Optional)
+
+If you're using Azure for backend state storage:
+
+1. Edit the backend configuration in `stage_2_k10/backend.tf`:
 
    ```hcl
-   k10_dashboard_url = "https://k10-route-kasten-io.apps.<your-cluster-domain>/k10/"
+   terraform {
+     backend "azurerm" {
+       storage_account_name = "your-storage-account-name"
+       container_name       = "your-container-name"
+       key                  = "stage-2-k10.tfstate"
+     }
+   }
    ```
+
+### Step 2: Configure Variables
+
+1. Navigate to the stage_2_k10 directory:
+
+   ```bash
+   cd ../stage_2_k10
+   ```
+
+2. Create or edit a `.tfvars` file in the `tfvars` directory. You can use the provided example as a template:
+
+   ```bash
+   cp tfvars/alexandre.arrive.tfvars tfvars/your-name.tfvars
+   ```
+
+3. Edit your `.tfvars` file with appropriate values:
+
+   ```hcl
+   tag_kasten_se   = "your.email@veeam.com"
+   tag_expire_by   = "2024-12-31"
+   tag_environment = "rosa-k10-tf"
+   
+   kubeconfig_path = "~/.kube/config"
+   token           = "your-rhcs-token"
+   
+   kasten_ocp_project_description  = "Kubernetes data management platform"
+   kasten_ocp_project_display_name = "Kasten K10"
+   kasten_namespace                = "kasten-io"
+   channel                         = "stable"
+   installPlanApproval             = "Automatic"
+   kasten_operator_name            = "k10-kasten-operator-term-rhmp"
+   source_catalog                  = "redhat-marketplace"
+   sourceNamespace                 = "openshift-marketplace"
+   startingCSV                     = "k10-kasten-operator-term-rhmp.v7.5.7"
+   
+   enable_openshift_virtualization    = false # Set to true to enable OpenShift Virtualization
+   enable_advanced_cluster_management = false # Set to true to enable OpenShift ACM
+   ```
+
+### Step 3: Initialize and Apply Terraform
+
+1. Make sure you're logged in to your ROSA cluster:
+
+   ```bash
+   oc login --token=<token> --server=<server-url>
+   ```
+
+2. Initialize Terraform:
+
+   ```bash
+   terraform init
+   ```
+
+3. Validate your configuration:
+
+   ```bash
+   terraform validate
+   ```
+
+4. Plan the deployment:
+
+   ```bash
+   terraform plan -var-file=tfvars/your-name.tfvars
+   ```
+
+5. Apply the configuration:
+
+   ```bash
+   terraform apply -var-file=tfvars/your-name.tfvars
+   ```
+
+6. Wait for the Veeam Kasten K10 operator to be deployed (this may take 5-10 minutes).
+
+### Step 4: Verify the Veeam Kasten K10 Deployment
+
+1. Check that all K10 pods are running:
+
+   ```bash
+   oc get pods -n kasten-io
+   ```
+
+2. Access the Veeam Kasten K10 dashboard:
+
+   ```bash
+   echo "Kasten K10 Dashboard URL: $(terraform output -raw k10_dashboard_url)"
+   ```
+
+3. Log in to the dashboard using your OpenShift credentials.
+
+## Optional Components
+
+### OpenShift Virtualization
+
+If you enabled OpenShift Virtualization in your `.tfvars` file (`enable_openshift_virtualization = true`), verify its deployment:
+
+```bash
+oc get pods -n openshift-cnv
+```
+
+### Advanced Cluster Management (ACM)
+
+If you enabled OpenShift Advanced Cluster Management in your `.tfvars` file (`enable_advanced_cluster_management = true`), verify its deployment:
+
+```bash
+oc get pods -n open-cluster-management
+```
 
 ## Cleanup
 
-To remove the Kasten K10 installation:
+### Step 1: Destroy Stage 2 Resources
 
-1. **Terraform Destroy**:
-
-   ```bash
-   cd installer_tf
-   terraform destroy -var-file="../tfvars/values.tfvars"
-   ```
-
-2. **If Namespace is Stuck in Terminating Status**:
-   
-   Use the cleanup script:
+1. Navigate to the stage_2_k10 directory:
 
    ```bash
-   cd ../cleanup_script
-   chmod +x kasten_ns_cleanup.sh
-   ./kasten_ns_cleanup.sh
+   cd stage_2_k10
    ```
 
-## Features
+2. Destroy the resources:
 
-This Terraform automation:
+   ```bash
+   terraform destroy -var-file=tfvars/your-name.tfvars
+   ```
 
-- Creates the required Kasten namespace
-- Deploys the Kasten K10 Operator from the Red Hat Marketplace
-- Configures OpenShift-specific settings and permissions
-- Creates an EBS IO2 StorageClass optimized for Kasten
-- Configures VolumeSnapshotClass for AWS EBS
-- Creates a Kasten K10 instance with OpenShift Routes
-- Automatically configures AWS infrastructure for Kasten K10
+3. If resources are stuck in terminating state, use the cleanup scripts:
 
-## Notes
+   ```bash
+   bash kasten_ns_cleanup.sh
+   bash acm_cleanup.sh # If ACM was enabled
+   ```
 
-- This installation configures AWS as the default storage location for K10
-- The installation uses the stable channel for the K10 operator
-- The EBS IO2 storage class is set as the default StorageClass
-- The cleanup script helps remove Kasten resources when normal uninstallation doesn't work
+### Step 2: Destroy Stage 1 Resources
+
+1. Navigate to the stage_1_rosa directory:
+
+   ```bash
+   cd ../stage_1_rosa
+   ```
+
+2. Destroy the resources:
+
+   ```bash
+   terraform destroy -var-file=tfvars/your-name.tfvars
+   ```
 
 ## Troubleshooting
 
-If you encounter issues:
+### Common Issues
 
-1. Check the operator installation status:
-
-   ```bash
-   oc get csv -n kasten-io
-   ```
-
-2. Check the K10 platform status:
+1. **Namespace stuck in terminating state**:
+   Use the provided cleanup script:
 
    ```bash
-   oc get k10 -n kasten-io
+   bash kasten_ns_cleanup.sh
    ```
 
-3. View logs:
+2. **Error creating AWS Infrastructure Profile**:
+   Verify your AWS credentials and region:
 
    ```bash
-   oc logs -n kasten-io -l app=k10,component=jobs --tail=100
+   aws configure list
    ```
 
-## License
+3. **CRD not found errors**:
+   Wait longer for the operator to create all the CRDs, or restart the operator installation:
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+   ```bash
+   oc delete subscription kasten-operator -n kasten-io
+   oc delete operatorgroup kasten-operator-group -n kasten-io
+   ```
+
+4. **Unable to access K10 dashboard**:
+   Check the route status:
+   
+   ```bash
+   oc get routes -n kasten-io
+   ```
+
+## Support
+
+For issues related to this Terraform code, please open an issue in the GitHub repository.
+
+For issues with Veeam Kasten K10, please contact Veeam support or visit the [Kasten documentation](https://docs.kasten.io/).
