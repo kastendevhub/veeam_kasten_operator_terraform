@@ -283,25 +283,25 @@ oc get pods -n open-cluster-management
    terraform destroy -var-file=tfvars/your-name.tfvars
    ```
 
-## Troubleshooting
+## Troubleshooting :wrench:
 
-### Common Issues
+### Common Issues :warning:
 
-1. **Namespace stuck in terminating state**:
+1. **:no_entry_sign: Namespace stuck in terminating state**:
    Use the provided cleanup script:
 
    ```bash
    bash kasten_ns_cleanup.sh
    ```
 
-2. **Error creating AWS Infrastructure Profile**:
+2. **:key: Error creating AWS Infrastructure Profile**:
    Verify your AWS credentials and region:
 
    ```bash
    aws configure list
    ```
 
-3. **CRD not found errors**:
+3. **:mag: CRD not found errors**:
    Wait longer for the operator to create all the CRDs, or restart the operator installation:
 
    ```bash
@@ -309,15 +309,15 @@ oc get pods -n open-cluster-management
    oc delete operatorgroup kasten-operator-group -n kasten-io
    ```
 
-4. **Unable to access K10 dashboard**:
+4. **:computer: Unable to access K10 dashboard**:
    Check the route status:
    
    ```bash
    oc get routes -n kasten-io
    ```
 
-## Support
+## Support :lifebuoy:
 
-For issues related to this Terraform code, please open an issue in the GitHub repository.
+For issues related to this Terraform code, please open an issue in the GitHub repository. :octocat:
 
-For issues with Veeam Kasten K10, please contact Veeam support or visit the [Kasten documentation](https://docs.kasten.io/).
+For issues with Veeam Kasten K10, please contact Veeam support or visit the [Kasten documentation](https://docs.kasten.io/). :books:
