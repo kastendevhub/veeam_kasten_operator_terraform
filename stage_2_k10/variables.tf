@@ -1,29 +1,3 @@
-############################################################################################
-//Variables Tags for resources managed by Terraform
-############################################################################################
-
-variable "tag_expire_by" {
-  type        = string
-  description = "Date of expiration"
-  default     = "2024-08-01"
-
-  validation {
-    condition     = can(regex("^\\d{4}-\\d{2}-\\d{2}$", var.tag_expire_by))
-    error_message = "The tag_expire_by variable must be in the format YYYY-MM-DD."
-  }
-}
-
-variable "tag_environment" {
-  type        = string
-  description = "Name of the environement"
-  default     = "project-xyz-tf"
-
-  validation {
-    condition     = can(regex(".*-tf$", var.tag_environment))
-    error_message = "The name of the bucket variable must end with '-tf'."
-  }
-}
-
 ###################################################################
 //Variables for ROSA Cluster credentials
 ###################################################################
@@ -109,5 +83,31 @@ variable "enable_advanced_cluster_management" {
   description = "Whether to enable OpenShift Advanced Cluster Management"
   type        = bool
   default     = false
+}
+
+############################################################################################
+//Variables Tags for resources managed by Terraform
+############################################################################################
+
+variable "tag_expire_by" {
+  type        = string
+  description = "Date of expiration"
+  default     = "2024-08-01"
+
+  validation {
+    condition     = can(regex("^\\d{4}-\\d{2}-\\d{2}$", var.tag_expire_by))
+    error_message = "The tag_expire_by variable must be in the format YYYY-MM-DD."
+  }
+}
+
+variable "tag_environment" {
+  type        = string
+  description = "Name of the environement"
+  default     = "project-xyz-tf"
+
+  validation {
+    condition     = can(regex(".*-tf$", var.tag_environment))
+    error_message = "The name of the environment variable must end with '-tf'."
+  }
 }
 
