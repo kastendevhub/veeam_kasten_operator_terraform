@@ -2,8 +2,8 @@
 //Variables for AWS Provider
 ############################################################################################
 aws_region      = "value"
-tag_expire_by   = "value"
-tag_environment = "value"
+tag_expire_by   = "value" //The tag_expire_by variable must be in the format YYYY-MM-DD 
+tag_environment = "value" //The name of the environment variable must end with '-tf'
 
 ############################################################################################
 //Configuration of the AWS VPC for ROSA
@@ -35,9 +35,3 @@ htpasswd                = "value" //The htpasswd variable is the password that w
 //Variables AWS S3 Bucket for ROSA
 ############################################################################################
 bucket_name = "value" //The name of the S3 bucket for Veeam Kasten export. The name of the bucket variable must end with '-tf'
-
-############################################################################################
-//Variables Tags for resources managed by Terraform
-############################################################################################
-tag_expire_by   = "value" //The tag_expire_by variable must be in the format YYYY-MM-DD
-tag_environment = "value" //The name of the environment variable must end with '-tf'

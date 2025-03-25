@@ -78,8 +78,8 @@ If the Terraform backend is stored in Azure Blob, then you need to initialise yo
 
    ```hcl
    aws_region      = "us-east-1"                 # Your AWS region
-   tag_expire_by   = "2024-12-31"                # Expiration date for resources //not mandatory
-   tag_environment = "my-rosa-env-tf"            # Environment name (must end with -tf) //not mandatory
+   tag_expire_by   = "2024-12-31"                # Expiration date for resources - change the date depending on your requirements
+   tag_environment = "my-rosa-env-tf"            # Environment name (must end with -tf) - //change the name depending on your requirements
    
    new_vpc_name    = "rosa-vpc-tf"               # Name for the new VPC (must end with -tf)
    
@@ -129,7 +129,7 @@ You can add the `-auto-approve` at the end of the `terraform apply` command to a
 
 From the Red Hat Hybrid Cloud Console, you should see to ROSA cluster up and running
 
-![alt text](<images/Screenshot 2025-03-25 at 10.16.07.png>)
+![alt text](images/rosa_cluster_list.png)
 
 2. Configure the Access to connect to your ROSA cluster:
 
@@ -203,8 +203,8 @@ If you're using Azure for backend state storage, or any other remote storage bac
 3. Edit your `.tfvars` file with appropriate values:
 
    ```hcl
-   tag_expire_by   = "2024-12-31" //not mandatory
-   tag_environment = "rosa-k10-tf" //not mandaotry
+   tag_expire_by   = "2024-12-31" # change the date depending on your requirements
+   tag_environment = "rosa-k10-tf" # change the name depending on your requirements
    
    kubeconfig_path = "~/.kube/config"
    token           = "your-rhcs-token"
@@ -271,7 +271,7 @@ Once the `terraform apply` is successfully completed, the `output.tf` configurat
 
 3. Log in to the dashboard using your OpenShift credentials.
 
-By default the authentication to the Veeam Kasten Management console is configured with the OpenShift OAuth in this terraform deployment. The token requested during the login can be found by going into the `Copy login command` view and copy/paste the `API token` 
+By default the authentication to the Veeam Kasten Management console is configured with the OpenShift OAuth in this terraform deployment. The token requested during the login can be found by going into the `Copy login command` view and copy/paste the `API token` in the Veeam Kasten Management console.
 
 ```text
 sha256~......
@@ -333,9 +333,3 @@ oc get pods -n open-cluster-management
    ```bash
    terraform destroy -var-file=tfvars/your-name.tfvars
    ```
-
-## Support :lifebuoy:
-
-For issues related to this Terraform code, please open an issue in the GitHub repository. :octocat:
-
-For issues with Veeam Kasten K10, please contact Veeam support or visit the [Kasten documentation](https://docs.kasten.io/). :books:
