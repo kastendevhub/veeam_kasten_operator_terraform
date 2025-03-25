@@ -35,12 +35,17 @@ The following table compares different options for storing your Terraform state 
 
 Exclude the `backend.tf` from your configuration if the `tfstate` will remain on the local workstation, or adapt the configuration depending on the terraform backend selected.
 
+
+
 ## Deployment Process
 
 The deployment is divided into two stages:
 
 1. Stage 1: Deploy the ROSA cluster
 2. Stage 2: Deploy the Veeam Kasten K10 Operator and optional components
+
+In this scenario, we consider that the Veeam Kasten Operator is going to be installed on OpenShift running in AWS. During the deployment of the Operator, there is an additional step seamlessly added which is the creation of an [`Infrastructure Profile`](https://docs.kasten.io/latest/install/storage.html#aws-infrastructure-profile) and some specific settings added on the configuration of the [AWS EBS `io2` storageclass](https://docs.aws.amazon.com/ebs/latest/userguide/ebs-volume-types.html).
+The purpose of the Infrastructure profile is to allow Veeam Kasten to directly interact with AWS EBS APIs during the execution of the backup and export actions. In the particular case of AWS EBS, Veeam Kasten through the Infrastructure Profile can leverage AWS EBS APIs to support the `Change Block Tracking` mecanism, making the backup of large PVC more efficient. If you want to know more about `CBT` in Kubernetes [check this out](https://thenewstack.io/kubernetes-advances-cloud-native-data-protection-share-feedback/).
 
 ## Stage 1: Deploy ROSA Cluster
 
@@ -79,7 +84,7 @@ If the Terraform backend is stored in Azure Blob, then you need to initialise yo
    ```hcl
    aws_region      = "us-east-1"                 # Your AWS region
    tag_expire_by   = "2024-12-31"                # Expiration date for resources - change the date depending on your requirements
-   tag_environment = "my-rosa-env-tf"            # Environment name (must end with -tf) - //change the name depending on your requirements
+   tag_environment = "my-rosa-env-tf"            # Environment name (must end with -tf) - change the name depending on your requirements
    
    new_vpc_name    = "rosa-vpc-tf"               # Name for the new VPC (must end with -tf)
    
@@ -92,6 +97,22 @@ If the Terraform backend is stored in Azure Blob, then you need to initialise yo
    
    bucket_name = "my-rosa-bucket-tf"              # S3 bucket name (must end with -tf) - This bucket will be used by Veeam Kasten to export the Kasten backup in a secure location
    ```
+
+⚠️ For the `compute_machine_type` you can select one of the instance available for a ROSa deployment by running the script `rosa_instances.sh` available in the `stage_1_rosa` folder. It lists all the eligable EC2 instances for ROSA. You need to install the `rosa` cli first before running this script. ⚠️
+
+```text
+ID                 CATEGORY              CPU_CORES  MEMORY
+a1.2xlarge         accelerated_computing 8          16
+a1.4xlarge         accelerated_computing 16         32
+a1.large           accelerated_computing 2          4
+a1.medium          storage_optimized     1          2
+a1.metal           storage_optimized     16         32
+a1.xlarge          accelerated_computing 4          8
+c1.medium          compute_optimized     2          1.69921875
+c1.xlarge          accelerated_computing 8          7
+c3.2xlarge         accelerated_computing 8          15
+....
+```
 
 ### Step 3: Initialize and Apply Terraform
 
