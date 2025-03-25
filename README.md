@@ -98,7 +98,7 @@ If the Terraform backend is stored in Azure Blob, then you need to initialise yo
    bucket_name = "my-rosa-bucket-tf"              # S3 bucket name (must end with -tf) - This bucket will be used by Veeam Kasten to export the Kasten backup in a secure location
    ```
 
-⚠️ For the `compute_machine_type` you can select one of the instance available for a ROSa deployment by running the script `rosa_instances.sh` available in the `stage_1_rosa` folder. It lists all the eligable EC2 instances for ROSA. You need to install the `rosa` cli first before running this script. ⚠️
+⚠️ For the `compute_machine_type` you can select one of the instance available for a ROSa deployment by running the script `rosa_instances.sh` available in the `stage_1_rosa` folder. It lists all the eligible EC2 instances for ROSA. You need to install the `rosa` cli first before running this script. ⚠️
 
 ```text
 ID                 CATEGORY              CPU_CORES  MEMORY
