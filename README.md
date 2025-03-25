@@ -244,6 +244,69 @@ If you're using Azure for backend state storage, or any other remote storage bac
    enable_advanced_cluster_management = false # Set to true to enable OpenShift ACM
    ```
 
+Now, if there are specific requirements to customise the Veeam Kasten settings further, you can modify the creation of the Veeam Kasten instance in the `main.tf` file under the `stage_2_k10`. All the advanced settings for Veeam Kasten are available in the official documentation - [Advanced Install Options](https://docs.kasten.io/latest/install/advanced.html#complete-list-of-veeam-kasten-helm-options)
+
+```hcl
+############################################################################################
+// Create K10 Instance using kubectl_manifest
+############################################################################################
+
+# Get the OpenShift cluster domain
+data "external" "cluster_domain" {
+  program = ["bash", "-c", "echo '{\"domain\": \"'$(oc get ingress.config.openshift.io cluster -o jsonpath='{.spec.domain}')'\"}'"]
+}
+
+resource "kubectl_manifest" "k10_instance" {
+  depends_on = [
+    null_resource.kasten_subscription,
+    null_resource.create_volumesnapshotclass,
+    kubernetes_service_account.k10_service_accounts,
+    null_resource.apply_scc_to_accounts,
+    kubernetes_cluster_role_binding.k10_k10_cluster_admin,
+    kubernetes_cluster_role_binding.k10_metering_cluster_admin
+  ]
+  
+  yaml_body = <<YAML
+apiVersion: apik10.kasten.io/v1alpha1
+kind: K10
+metadata:
+  name: k10
+  namespace: kasten-io
+  annotations:
+    helm.sdk.operatorframework.io/reconcile-period: "2m"
+    helm.sdk.operatorframework.io/rollback-force: "false"
+spec:
+  auth:
+    basicAuth:
+      enabled: false
+    tokenAuth:
+      enabled: true
+  global:
+    persistence:
+      storageClass: "ebs-csi-io2"
+      metering:
+        enabled: true
+        storageClass: "ebs-csi-io2"
+        size: "4Gi"
+  route:
+    enabled: true
+    host: ""
+    newHostName: "k10.apps.${data.external.cluster_domain.result.domain}"
+    path: "/k10/"
+    tls:
+      enabled: true
+      termination: "edge"
+      insecureEdgeTerminationPolicy: "Redirect"
+YAML
+
+  # Add proper server-side apply to handle CRD not being available during planning
+  server_side_apply = true
+  force_conflicts = true
+  wait = true
+  wait_for_rollout = false
+}
+```
+
 ### Step 3: Initialize and Apply Terraform
 
 1. Make sure you're logged in to your ROSA cluster:
