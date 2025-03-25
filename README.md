@@ -8,11 +8,37 @@ This repository contains Terraform code to deploy a Red Hat OpenShift Service on
 - Terraform (version 1.0.0 or higher)
 - OpenShift CLI (`oc`) installed
 - Red Hat OpenShift Cluster Manager token
-- Optional: Azure CLI (if using Azure for the backend state)
+
+To provision a ROSA cluster through the rhcs Terraform provider, an **offline token access** needs to be created by using the Red Hat Hybrid Cloud Console.
+
+```url
+https://console.redhat.com/openshift/token/rosa
+```
+
+- Optional: Azure CLI (if using Azure for the backend state) - Reminder the Terraform state file 
+
+_Reminder_ the Terraform backend (`backend.tf`) file is mandatory for every environment that needs to be managed by Terraform. For security reasons, it is strongly recommended to store the the `tfstate` file on a remote secure place, like for instance in an Azure Storage Account instead of keeping this file on the local machine of the Kasten SE. The `tfstate` file contains all the information that the 'terraform apply' will execute during the deployment process, like credentials and all the sensitive information used by Terraform. It's the fully detailed plan applied by Terraform. That's the reason why it needs to be stored in a secured place. The other reason for storing remotely the `tfstate` file, is to allow to collaboration between different contributors on the same project. As soon as someone as access to the `tfstate` file, that person can retrieve all the details of the deployment and even execute on behalf of someone else a terraform destroy command and delete a complete environment.
+
+### Terraform State Storage Options (For reference)
+
+The following table compares different options for storing your Terraform state files:
+
+| Storage Option | Pros | Cons |
+|----------------|------|------|
+| **Local File System** | • Simple setup with no additional configuration<br>• No external dependencies<br>• Fast access | • Not suitable for team collaboration<br>• No versioning<br>• Risk of data loss<br>• Security concerns (sensitive data on local machine) |
+| **AWS S3** | • Built-in versioning<br>• Encryption at rest<br>• Locking via DynamoDB<br>• High availability<br>• Cost-effective | • Requires AWS account and credentials<br>• Additional setup required<br>• Network dependency |
+| **Azure Blob Storage** | • Built-in versioning<br>• Encryption at rest<br>• Locking capabilities<br>• High availability | • Requires Azure account and credentials<br>• Additional setup required<br>• Network dependency |
+| **Google Cloud Storage** | • Built-in versioning<br>• Encryption at rest<br>• Locking capabilities<br>• High availability | • Requires GCP account and credentials<br>• Additional setup required<br>• Network dependency |
+| **HashiCorp Terraform Cloud** | • Built-in state management<br>• Remote operations<br>• Team collaboration features<br>• Access controls<br>• CI/CD integration | • Costs for teams/enterprise features<br>• External service dependency<br>• Network dependency |
+| **GitLab CI/CD** | • Integrated with GitLab repositories<br>• Access controls<br>• CI/CD integration | • Potential performance issues<br>• Setup complexity<br>• Not designed specifically for state storage |
+| **Terraform Enterprise** | • Advanced team workflows<br>• Policy as code (Sentinel)<br>• Private network deployment options<br>• Enhanced security features<br>• Audit logging | • Significant cost<br>• Complex setup<br>• Enterprise focus may be overkill for small teams |
+
+Exclude the `backend.tf` from your configuration if the `tfstate` will remain on the local workstation, or adapt the configuration depending on the terraform backend selected.
 
 ## Deployment Process
 
 The deployment is divided into two stages:
+
 1. Stage 1: Deploy the ROSA cluster
 2. Stage 2: Deploy the Veeam Kasten K10 Operator and optional components
 
@@ -24,17 +50,11 @@ If you're using Azure for backend state storage:
 
 1. Edit the backend configuration in `stage_1_rosa/backend.tf`:
 
-   ```hcl
-   terraform {
-     backend "azurerm" {
-       storage_account_name = "your-storage-account-name"
-       container_name       = "your-container-name"
-       key                  = "stage-1-rosa.tfstate"
-     }
-   }
-   ```
+Adapt the configuration of the `backend.tf` file depending on your Terraform backend
 
 2. Log in to Azure:
+
+If the Terraform backend is stored in Azure Blob, then you need to initialise your access to your Azure subscription.
 
    ```bash
    az login
@@ -58,8 +78,8 @@ If you're using Azure for backend state storage:
 
    ```hcl
    aws_region      = "us-east-1"                 # Your AWS region
-   tag_expire_by   = "2024-12-31"                # Expiration date for resources
-   tag_environment = "my-rosa-env-tf"            # Environment name (must end with -tf)
+   tag_expire_by   = "2024-12-31"                # Expiration date for resources //not mandatory
+   tag_environment = "my-rosa-env-tf"            # Environment name (must end with -tf) //not mandatory
    
    new_vpc_name    = "rosa-vpc-tf"               # Name for the new VPC (must end with -tf)
    
@@ -70,7 +90,7 @@ If you're using Azure for backend state storage:
    htpasswd_idp_user       = "openshift-admin"    # Admin username
    htpasswd                = "secure-password"    # Admin password
    
-   bucket_name = "my-rosa-bucket-tf"              # S3 bucket name (must end with -tf)
+   bucket_name = "my-rosa-bucket-tf"              # S3 bucket name (must end with -tf) - This bucket will be used by Veeam Kasten to export the Kasten backup in a secure location
    ```
 
 ### Step 3: Initialize and Apply Terraform
@@ -99,24 +119,50 @@ If you're using Azure for backend state storage:
    terraform apply -var-file=tfvars/your-name.tfvars
    ```
 
-5. Wait for the ROSA cluster to be deployed (this may take 30-40 minutes).
+You can add the `-auto-approve` at the end of the `terraform apply` command to automatically approve the deployment of the ROSA cluster
+
+5. Wait for the ROSA cluster to be deployed (this may take 40-50 minutes).
 
 ### Step 4: Verify the ROSA Cluster Deployment
 
 1. Check the status of your ROSA cluster:
 
-   ```bash
-   rosa describe cluster -c your-cluster-name-tf
-   ```
+From the Red Hat Hybrid Cloud Console, you should see to ROSA cluster up and running
 
-2. Configure the OpenShift CLI to connect to your cluster:
+![alt text](<images/Screenshot 2025-03-25 at 10.16.07.png>)
 
-   ```bash
-   rosa create admin --cluster=your-cluster-name-tf
-   # Follow the instructions to log in
-   ```
+2. Configure the Access to connect to your ROSA cluster:
+
+ From the Red Hat Hybrid Management Console , navigate to:
+
+* `Cluster List`
+* `<name of your rosa cluster>`
+* `Access Control` tab
+* In the `Identity Provider` tab there is already an htpasswd created.
+
+![alt text](images/rosa_cluster_list.png)
+
+Now, go to the `Cluster Roles and Access` tab, and create a user. Click on Add User
+
+![alt text](images/cluster_role_access_tab.png)
+
+Refer to the `htpasswd_idp_user` in the `tfvars` file to define the `User ID`. Select `cluster-admins` for granting the full permissions to this account.
+
+![alt text](images/add_cluster_user.png)
+
+Wait a couple of minutes while the creation of the user is properly applied.
 
 3. Verify the connection:
+
+Once you are login, in order, to connect to the OCP cluster from your shell, click on right hand corner, on your `User ID` and then go on `Copy login command`.
+
+![alt text](images/copy_login_command.png)
+
+Copy/paste in your terminal the `oc login --token` command, before moving on the deployment of Veeam Kasten.
+
+![alt text](images/oc_login.png)
+
+Using the `oc` command line you can also verify your access to the ROSA cluster by running this command:
 
    ```bash
    oc get nodes
@@ -126,7 +172,7 @@ If you're using Azure for backend state storage:
 
 ### Step 1: Configure Backend State (Optional)
 
-If you're using Azure for backend state storage:
+If you're using Azure for backend state storage, or any other remote storage backend,adapt the configuration of the `backend.tf` file to initialise the Terraform backend for the deployment of the Veeam Kasten Operator.
 
 1. Edit the backend configuration in `stage_2_k10/backend.tf`:
 
@@ -151,15 +197,14 @@ If you're using Azure for backend state storage:
 2. Create or edit a `.tfvars` file in the `tfvars` directory. You can use the provided example as a template:
 
    ```bash
-   cp tfvars/alexandre.arrive.tfvars tfvars/your-name.tfvars
+   cp tfvars/stage_2_k10.tfvars tfvars/your-name.tfvars
    ```
 
 3. Edit your `.tfvars` file with appropriate values:
 
    ```hcl
-   tag_kasten_se   = "your.email@veeam.com"
-   tag_expire_by   = "2024-12-31"
-   tag_environment = "rosa-k10-tf"
+   tag_expire_by   = "2024-12-31" //not mandatory
+   tag_environment = "rosa-k10-tf" //not mandaotry
    
    kubeconfig_path = "~/.kube/config"
    token           = "your-rhcs-token"
@@ -172,7 +217,7 @@ If you're using Azure for backend state storage:
    kasten_operator_name            = "k10-kasten-operator-term-rhmp"
    source_catalog                  = "redhat-marketplace"
    sourceNamespace                 = "openshift-marketplace"
-   startingCSV                     = "k10-kasten-operator-term-rhmp.v7.5.7"
+   startingCSV                     = "k10-kasten-operator-term-rhmp.v7.5.7" //change the version of the Kasten K10 operator if needed
    
    enable_openshift_virtualization    = false # Set to true to enable OpenShift Virtualization
    enable_advanced_cluster_management = false # Set to true to enable OpenShift ACM
@@ -222,15 +267,21 @@ If you're using Azure for backend state storage:
 
 2. Access the Veeam Kasten K10 dashboard:
 
-   ```bash
-   echo "Kasten K10 Dashboard URL: $(terraform output -raw k10_dashboard_url)"
-   ```
+Once the `terraform apply` is successfully completed, the `output.tf` configuration, shows directly in the terminal output the URL of the Veeam Kasten Management console
 
 3. Log in to the dashboard using your OpenShift credentials.
+
+By default the authentication to the Veeam Kasten Management console is configured with the OpenShift OAuth in this terraform deployment. The token requested during the login can be found by going into the `Copy login command` view and copy/paste the `API token` 
+
+```text
+sha256~......
+```
 
 ## Optional Components
 
 ### OpenShift Virtualization
+
+**If you are interested to evaluate Veeam Kasten with OpenShift Virtualisation and understand how a Cloud Native VM can be protected, you can enable the installation of the OpenShift Virtualisation Operator by setting up the value at true. Otherwise by default the OCPV Operator won't be installed.**
 
 If you enabled OpenShift Virtualization in your `.tfvars` file (`enable_openshift_virtualization = true`), verify its deployment:
 
@@ -281,39 +332,6 @@ oc get pods -n open-cluster-management
 
    ```bash
    terraform destroy -var-file=tfvars/your-name.tfvars
-   ```
-
-## Troubleshooting :wrench:
-
-### Common Issues :warning:
-
-1. **:no_entry_sign: Namespace stuck in terminating state**:
-   Use the provided cleanup script:
-
-   ```bash
-   bash kasten_ns_cleanup.sh
-   ```
-
-2. **:key: Error creating AWS Infrastructure Profile**:
-   Verify your AWS credentials and region:
-
-   ```bash
-   aws configure list
-   ```
-
-3. **:mag: CRD not found errors**:
-   Wait longer for the operator to create all the CRDs, or restart the operator installation:
-
-   ```bash
-   oc delete subscription kasten-operator -n kasten-io
-   oc delete operatorgroup kasten-operator-group -n kasten-io
-   ```
-
-4. **:computer: Unable to access K10 dashboard**:
-   Check the route status:
-   
-   ```bash
-   oc get routes -n kasten-io
    ```
 
 ## Support :lifebuoy:

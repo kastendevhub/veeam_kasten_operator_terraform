@@ -15,7 +15,7 @@ installPlanApproval             = "Automatic"
 kasten_operator_name            = "k10-kasten-operator-term-rhmp"
 source_catalog                  = "redhat-marketplace"
 sourceNamespace                 = "openshift-marketplace"
-startingCSV                     = "k10-kasten-operator-term-rhmp.v7.5.7"
+startingCSV                     = "k10-kasten-operator-term-rhmp.v7.5.7" //change the version of the Kasten K10 operator if needed
 
 ############################################################################################
 // Module for ROSA Cluster

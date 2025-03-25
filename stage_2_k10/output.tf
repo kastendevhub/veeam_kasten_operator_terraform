@@ -13,5 +13,5 @@ data "external" "kasten_route" {
 # Output the dashboard URL with HTTPS protocol
 output "k10_dashboard_url" {
   description = "URL to access the Kasten K10 dashboard"
-  value       = "https://${data.external.kasten_route.result.url}"
+  value       = "https://${data.external.kasten_route.result.url}/k10/"
 }
